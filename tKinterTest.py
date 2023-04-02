@@ -1,8 +1,10 @@
 import tkinter as tk
+from tkinter import ttk
 import sys
 import time
 from yahoofinancials import YahooFinancials as YF
-
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 
 DEFAULT_ARGS = ('DOGE-JPY')
 MODULE_ARGS = ('yf', 'yahoofinancial', 'yahoofinancials')
@@ -11,18 +13,32 @@ OUTPUT = ''
 mark = '-' * 64
 
 
-def default_api(ticker):
+data = []
+
+def default_api(ticker, progressbar):
     global OUTPUT
     tick = YF(ticker)
+    global data
+
+    data = [tick.get_open_price(), tick.get_daily_low(), tick.get_daily_high(), tick.get_current_price()]
+
+    progressbar.step(20)
     OUTPUT += str(tick.get_summary_data()) + '\n'
     OUTPUT += mark + '\n'
+    progressbar.step(20)
     OUTPUT += str(tick.get_stock_quote_type_data()) + '\n'
     OUTPUT += mark + '\n'
+    progressbar.step(20)
     OUTPUT += str(tick.get_stock_price_data()) + '\n'
     OUTPUT += mark + '\n'
+    progressbar.step(20)
     OUTPUT += str(tick.get_current_price()) + '\n'
     OUTPUT += mark + '\n'
+    progressbar.step(20)
     OUTPUT += str(tick.get_dividend_rate()) + '\n'
+
+    display_stock_graph(root)
+
     try:
         r = tick._cache.keys()
     except AttributeError:
@@ -30,6 +46,10 @@ def default_api(ticker):
     else:
         OUTPUT += mark + '\n'
         OUTPUT += str(r) + '\n'
+    #progressbar.step(20)
+
+
+
 
 def custom_api(queries, ts):
     global OUTPUT
@@ -66,7 +86,7 @@ def test_button():
     global DEFAULT_ARGS
     global OUTPUT
     DEFAULT_ARGS = (first_entry.get())
-    
+
     api = set(s for s in dir(YF) if s.startswith('get_'))
     api.update(MODULE_ARGS)
     api.update(HELP_ARGS)
@@ -78,7 +98,11 @@ def test_button():
     elif queries:
         custom_api(queries, ts)
     else:
-        timeit(default_api, ts[0] if 1 == len(ts) else ts)
+        progressbar = ttk.Progressbar(root, orient='horizontal', length=175, mode='indeterminate')
+        progressbar.pack(side='left', anchor='nw')
+        progressbar.start(10)
+        root.update()
+        timeit(default_api, ts[0] if 1 == len(ts) else ts, progressbar)
 
     text = tk.Text(root, wrap='word')
     text.insert('insert', OUTPUT)
@@ -87,9 +111,25 @@ def test_button():
     OUTPUT = ''
 
 
+def display_stock_graph(root):
+
+    # Create a figure and add a subplot
+    fig = Figure(figsize=(5, 4), dpi=100)
+    ax = fig.add_subplot(111)
+
+    print(data)
+    # Plot the data as a line graph
+    ax.plot(data)
+
+    # Create a canvas to display the graph in Tkinter
+    canvas = FigureCanvasTkAgg(fig, master=root)
+    canvas.draw()
+    canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
+
 root = tk.Tk()
-root.title("test")
-root.geometry("700x350")
+root.title("Stock Generator")
+root.geometry("750x350")
 
 first_label = tk.Label(root, text='Enter ticker here: ')
 first_label.pack(side='left', anchor='nw')
@@ -97,7 +137,8 @@ first_label.pack(side='left', anchor='nw')
 first_entry = tk.Entry(root)
 first_entry.pack(side='left', anchor='nw')
 
-button = tk.Button(root, text='GO', command=lambda:test_button())
+button = tk.Button(root, text='GO', command=lambda: test_button())
 button.pack(side='left', anchor='nw')
+
 
 root.mainloop()
